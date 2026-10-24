@@ -1,6 +1,6 @@
 [project]
 name = "wxpower"
-version = "0.2.0"
+version = "0.3.0"
 description = "Day-ahead wind and solar generation forecasts for Germany from ICON weather forecasts, compared with the TSO forecast"
 requires-python = ">=3.11"
 dependencies = [

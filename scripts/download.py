@@ -1,4 +1,4 @@
-"""Download and cache all inputs: SMARD series, installed capacity, ERA5, ICON and ECMWF day-1 weather at every point,
+"""Download and cache all inputs: SMARD series, installed capacity, ERA5, ICON, ECMWF IFS and AIFS day-1 weather at every point,
 and reBAP and ID-AEP from netztransparenz.de (needs NTP_CLIENT_ID and NTP_CLIENT_SECRET; skipped without them)."""
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ def main() -> None:
     cap = capacity.load_monthly(RAW / "capacity_energy_charts.json")
     print("capacity", cap.index.min().date(), cap.index.max().date(), flush=True)
     sites = all_sites()
-    for source in ("icon", "era5", "ecmwf"):
+    for source in ("icon", "era5", "ecmwf", "aifs"):
         for i, s in enumerate(sites.itertuples()):
             cached = (RAW / "weather" / source / f"{s.name}.csv").exists()
             w = openmeteo.load_point(source, s.name, s.lat, s.lon, START, END, RAW / "weather")

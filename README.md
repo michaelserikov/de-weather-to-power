@@ -1,8 +1,8 @@
-# From weather forecasts to power: day-ahead wind and solar generation in Germany (v0.2)
+# From weather forecasts to power: day-ahead wind and solar generation in Germany (v0.3)
 
 [![tests](https://github.com/michaelserikov/de-weather-to-power/actions/workflows/tests.yml/badge.svg)](https://github.com/michaelserikov/de-weather-to-power/actions/workflows/tests.yml)
 
-How well can German wind and solar generation for tomorrow be forecast from public weather forecasts, and does such a forecast add anything to the forecast the transmission system operators (TSOs) publish? This project turns day-ahead numerical weather predictions (DWD ICON and ECMWF IFS, issued about 24 hours before the valid hour) at 52 points into hourly forecasts of onshore wind, offshore wind and solar generation, evaluates them out of sample over 22 months (December 2024 to September 2026, 16,054 hours) and compares and combines them with the TSO day-ahead forecast. Version 0.2 prices the forecast errors at the German imbalance price (reBAP): what each forecast would cost a wind or solar portfolio that sells its forecast day-ahead and settles the difference as imbalance.
+How well can German wind and solar generation for tomorrow be forecast from public weather forecasts, and does such a forecast add anything to the forecast the transmission system operators (TSOs) publish? This project turns day-ahead numerical weather predictions (DWD ICON and ECMWF IFS, issued about 24 hours before the valid hour) at 52 points into hourly forecasts of onshore wind, offshore wind and solar generation, evaluates them out of sample over 22 months (December 2024 to September 2026, 16,054 hours) and compares and combines them with the TSO day-ahead forecast. Version 0.2 prices the forecast errors at the German imbalance price (reBAP): what each forecast would cost a wind or solar portfolio that sells its forecast day-ahead and settles the difference as imbalance. Version 0.3 adds ECMWF's machine-learning weather model AIFS as an input and compares it with the physics-based IFS and ICON.
 
 **Main findings**
 - A public-data model does not beat the TSOs on its own, but it carries independent information. Combining it with the TSO forecast (a linear combination re-estimated every month on past forecasts only) lowers the TSO's mean absolute error by 2.9% for onshore wind (Diebold-Mariano p = 0.001), 5.2% for solar (p = 0.005) and 1.5% for offshore wind (p = 0.09). The error of total wind and solar generation, which is what moves residual load and prices, falls from 1.76 to 1.68 GW.
@@ -10,6 +10,7 @@ How well can German wind and solar generation for tomorrow be forecast from publ
 - The weather forecast is not where most of the error comes from. The same models fed with ERA5 reanalysis, i.e. with the weather that actually happened, still miss onshore wind by 1.22 GW, against 1.34 GW with the day-ahead forecasts. Most of the remaining error lies in translating coarse point weather into fleet output (where the turbines are, hub heights, outages, curtailment), so that is where the next gains are.
 - The largest error of the period is not a weather error. On Easter Sunday, 5 April 2026, the day-ahead price fell to -105 EUR/MWh and onshore wind output dropped from about 34 GW to 10 GW around noon while every forecast stayed above 33 GW: plants were switched off at negative prices. Across all 1,041 negative-price hours, forecasts overestimate onshore wind by 1.5 GW (TSO) to 2.0 GW (this model). Giving the models the expected solar output and the day type (working day, Saturday, Sunday or holiday) lets them anticipate part of it: the onshore error in negative-price hours falls by 11% and the overall onshore error by 5%.
 - Accuracy is not the same as value. At German imbalance prices, the stand-alone ICON + ECMWF forecast, although 9% less accurate than the TSO forecast for wind and solar together, costs 1.46 instead of 1.74 EUR per MWh generated (saving 0.27 EUR/MWh, HAC t = 2.0): its errors move less with the system imbalance, so it is less often short when reBAP is high and long when it is low. For onshore wind the saving corresponds to about 0.6 million EUR per GW and year. Offshore wind shows the opposite sign (not significant). See [v0.2: what the errors cost](#v02-what-the-forecast-errors-cost-at-imbalance-prices).
+- ECMWF's machine-learning model AIFS is a useful second opinion rather than a replacement. On its own it is 12% less accurate than IFS for onshore wind, but exactly as accurate as IFS cut to the same 6-hourly time steps (difference 0.6%, p = 0.80): the gap is the 6-hourly archive, not the model. For offshore wind it beats 6-hourly IFS by 5% (p = 0.01). Its errors are the least correlated with the TSO forecast, so adding it to the mean of IFS and ICON lowers the error by 2.4% for onshore (p = 0.048) and 4.7% for offshore wind (p < 0.001). See [v0.3: AIFS](#v03-the-machine-learning-weather-model-aifs-as-input).
 - Fed-in solar power per unit of irradiance and installed capacity fell by about 10% between summer 2024 and summer 2025, so a model trained on last year overestimates this year (bias +390 MW). This is consistent with rising self-consumption and with the rules for new systems in force since 25 February 2025 (no feed-in payment in negative-price hours, feed-in limited to 60% of rated power without a smart meter). A rolling correction of the forecast level over the last 30 days, with a two-day publication lag, removes the bias and lowers the solar error by 12%.
 
 ## Results
@@ -68,10 +69,36 @@ The stand-alone forecast has a higher mean absolute error than the TSO forecast 
 
 The cost is negative in April 2026 because of a few hours on Easter Monday, 6 April: around noon wind and solar output was 18 to 20 GW below the TSO forecast (curtailment at day-ahead prices of -80 to -125 EUR/MWh), and reBAP fell to -4,218 EUR/MWh at 12:00 UTC. A short position bought back at that price is paid for it, so these hours alone outweigh the month. Single hours like this weigh heavily in the totals, which is why the results above are also reported with clipped spreads. Full tables, including costs by year and a cost split into covariance and bias terms: [results/tables/imbalance.md](results/tables/imbalance.md).
 
+## v0.3: the machine-learning weather model AIFS as input
+
+[AIFS](https://www.ecmwf.int/en/forecasts/dataset/aifs-machine-learning-data) is ECMWF's machine-learning forecast model, operational since 25 February 2025 alongside the physics-based IFS and initialised from the same operational analysis (upgraded to version 2 on 12 May 2026, inside the test period). Open-Meteo archives its day-1 forecasts from 18 February 2025 at 0.25 degree, with output every 6 hours interpolated to hours. Every weather input goes through the same pipeline (same features, the ensemble of linear model, gradient boosting and neural network, monthly refits, drift correction). Because of the short archive, the training window is 180 days and the test period is September 2025 to September 2026 (9,473 hours); all forecasts are less accurate than in v0.1, which trained on 365 days. With so little training data, feeding the features of several weather models into one model overfits, so combinations are equal-weight means of the single-model forecasts.
+
+To separate the model from its time resolution, IFS is also cut to 6-hourly wind and temperature (values at 00, 06, 12, 18 UTC, linearly interpolated) and run through the same models.
+
+**Mean absolute error, % of installed capacity**
+
+| | Onshore wind | Offshore wind | Solar |
+|---|---|---|---|
+| TSO day-ahead forecast | 1.84 | 5.45 | 0.61 |
+| ICON | 2.53 | 7.48 | 0.87 |
+| ECMWF IFS | 2.52 | 6.95 | 0.92 |
+| ECMWF IFS, cut to 6-hourly | 2.84 | 7.09 | |
+| **ECMWF AIFS** | 2.82 | **6.72** | 0.99 |
+| Mean of IFS and ICON | 2.25 | 6.72 | 0.77 |
+| **Mean of AIFS, IFS and ICON** | **2.20** | **6.41** | 0.77 |
+
+- **Time resolution, not model skill, explains the onshore gap.** AIFS is 12% worse than hourly IFS for onshore wind (Diebold-Mariano p < 0.001) but level with 6-hourly IFS (-0.6%, p = 0.80). For offshore wind, AIFS is better than 6-hourly IFS by 5% (p = 0.01) and than hourly IFS by 3% (p = 0.08). For solar, where the diurnal cycle has to be interpolated from 6-hourly radiation, AIFS is 8% worse than IFS (p = 0.09), most of it around noon.
+- **AIFS adds diversity.** Its hourly errors correlate less with the TSO forecast errors (onshore 0.49, IFS 0.61) and with ICON (0.54). Adding it to the mean of IFS and ICON lowers the error by 2.4% for onshore wind (p = 0.048) and 4.7% for offshore wind (p < 0.001); for solar it makes no difference (+0.3%, p = 0.85).
+- **Cheaper at imbalance prices.** Priced as in v0.2, AIFS costs less than IFS for every technology (onshore 1.07 vs 1.20, offshore 0.69 vs 1.02, solar 1.61 vs 1.85 EUR per MWh generated), consistent with its errors moving less with the system. These differences are descriptive; with 13 months they are not tested.
+
+![AIFS vs IFS](results/figures/fig7_aifs_vs_ifs.png)
+
+Full tables: [results/tables/aifs.md](results/tables/aifs.md). With hourly AIFS output, the onshore and solar comparison would be the more interesting one; the 6-hourly archive limits what can be said about AIFS itself for those two.
+
 ## Method
 
 **Data** (2024-02-20 to 2026-09-30, hourly, UTC)
-- Weather: [Open-Meteo](https://open-meteo.com) at 46 onshore grid points (1 degree) and 6 offshore wind clusters. Day-ahead forecasts from the previous-runs API (`_previous_day1`: the run about 24 hours before the valid hour) for DWD ICON (`icon_seamless`) and ECMWF IFS 0.25 degree; ERA5 reanalysis from the archive API. Variables: wind at 10 m and 100 m, global and direct radiation, 2 m temperature.
+- Weather: [Open-Meteo](https://open-meteo.com) at 46 onshore grid points (1 degree) and 6 offshore wind clusters. Day-ahead forecasts from the previous-runs API (`_previous_day1`: the run about 24 hours before the valid hour) for DWD ICON (`icon_seamless`) and ECMWF IFS 0.25 degree, and from v0.3 ECMWF AIFS Single 0.25 degree (`ecmwf_aifs025_single`, from 18 February 2025); ERA5 reanalysis from the archive API. Variables: wind at 10 m and 100 m, global and direct radiation, 2 m temperature.
 - Generation, TSO day-ahead forecasts and day-ahead prices: [SMARD](https://www.smard.de) (Bundesnetzagentur), bidding zone DE-LU.
 - Installed capacity, monthly: [Energy-Charts](https://energy-charts.info) (Fraunhofer ISE); solar as AC capacity.
 - Imbalance price reBAP (quality-assured) and the intraday index ID-AEP, quarter-hourly: [netztransparenz.de](https://www.netztransparenz.de) WebAPI of the four German TSOs (free registration).
@@ -103,11 +130,12 @@ pip install -e ".[test]"
 python scripts/download.py     # SMARD, Energy-Charts and Open-Meteo data, cached in data/raw (about 1 hour, API rate limits)
 python -m wxpower.run          # rolling forecasts and evaluation (about 30 minutes), writes results/
 python -m wxpower.imbalance_run  # v0.2 imbalance costs; first run downloads reBAP and ID-AEP (set NTP_CLIENT_ID, NTP_CLIENT_SECRET)
-pytest -q                      # 18 tests on synthetic data, no download needed
+python -m wxpower.aifs_run     # v0.3 AIFS vs IFS vs ICON (about 30 minutes)
+pytest -q                      # 19 tests on synthetic data, no download needed
 ```
 
 ## Data licences
-- Open-Meteo.com, CC BY 4.0 (ERA5: Copernicus Climate Change Service; ICON: Deutscher Wetterdienst; IFS: ECMWF)
+- Open-Meteo.com, CC BY 4.0 (ERA5: Copernicus Climate Change Service; ICON: Deutscher Wetterdienst; IFS and AIFS: ECMWF)
 - Bundesnetzagentur | SMARD.de, CC BY 4.0
 - Energy-Charts, Fraunhofer ISE, CC BY 4.0
 - netztransparenz.de (50Hertz, Amprion, TenneT, TransnetBW); raw data is not redistributed in this repository

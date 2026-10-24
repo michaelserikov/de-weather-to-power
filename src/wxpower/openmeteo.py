@@ -5,7 +5,9 @@ Three sources for the same variables:
   icon:  DWD ICON forecasts issued about one day before the valid hour (previous-runs API,
          suffix _previous_day1), i.e. the information a day-ahead forecaster had
   ecmwf: ECMWF IFS (0.25 degree) forecasts issued one day before, same API (archive from mid-March 2024)
-Data: Open-Meteo.com, CC BY 4.0 (ERA5: Copernicus Climate Change Service; ICON: Deutscher Wetterdienst; IFS: ECMWF).
+  aifs:  ECMWF AIFS Single (0.25 degree), ECMWF's machine-learning forecast model, issued one day before,
+         same API (archive from 18 February 2025; native output every 6 hours, interpolated to hours by Open-Meteo)
+Data: Open-Meteo.com, CC BY 4.0 (ERA5: Copernicus Climate Change Service; ICON: Deutscher Wetterdienst; IFS, AIFS: ECMWF).
 Times are UTC. Wind in m/s. Radiation is the mean over the preceding hour; wind and temperature
 are instantaneous values at the full hour.
 """
@@ -24,6 +26,7 @@ ENDPOINTS = {
     "era5": ("https://archive-api.open-meteo.com/v1/archive", {"models": "era5"}, ""),
     "icon": ("https://previous-runs-api.open-meteo.com/v1/forecast", {"models": "icon_seamless"}, "_previous_day1"),
     "ecmwf": ("https://previous-runs-api.open-meteo.com/v1/forecast", {"models": "ecmwf_ifs025"}, "_previous_day1"),
+    "aifs": ("https://previous-runs-api.open-meteo.com/v1/forecast", {"models": "ecmwf_aifs025_single"}, "_previous_day1"),
 }
 
 _session = requests.Session()

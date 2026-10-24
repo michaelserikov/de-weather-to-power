@@ -76,3 +76,10 @@ def test_day_type():
                           "2026-04-05 22:30"]).tz_localize("UTC")
     # Good Friday, Saturday, Easter Sunday, Tuesday; 22:30 UTC on Sunday is already Monday 00:30 (Easter Monday)
     assert features.day_type(idx).tolist() == [2, 1, 2, 0, 2]
+
+
+def test_aifs_is_a_day_ahead_source_like_ifs():
+    url, extra, suffix = openmeteo.ENDPOINTS["aifs"]
+    assert extra == {"models": "ecmwf_aifs025_single"}
+    assert suffix == openmeteo.ENDPOINTS["ecmwf"][2] == "_previous_day1"
+    assert url == openmeteo.ENDPOINTS["ecmwf"][0]
